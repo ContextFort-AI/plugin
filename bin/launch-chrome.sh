@@ -24,19 +24,40 @@ write_log() {
 # No system dependencies, no fallbacks
 if [[ "$(uname)" == "Darwin" ]]; then
     CHROME_BIN="$PLUGIN_DIR/chrome/chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
+    DOWNLOAD_URL="https://storage.googleapis.com/chrome-for-testing-public/143.0.7499.192/mac-x64/chrome-mac-x64.zip"
 elif [[ "$(uname)" == "Linux" ]]; then
     CHROME_BIN="$PLUGIN_DIR/chrome/chrome-linux64/chrome"
+    DOWNLOAD_URL="https://storage.googleapis.com/chrome-for-testing-public/143.0.7499.192/linux64/chrome-linux64.zip"
 else
     write_log "❌ Error: Unsupported platform"
     exit 1
 fi
 
-# Verify Chrome binary exists
+# Auto-download Chrome if not present
 if [[ ! -x "$CHROME_BIN" ]]; then
-    write_log "❌ Error: Chrome for Testing not found"
-    write_log "   Expected: $CHROME_BIN"
-    write_log "   Please run: ./plugin/INSTALL.sh"
-    exit 1
+    write_log "📦 Chrome for Testing not found, downloading..."
+    write_log "   This is a one-time download (~170MB)"
+
+    CHROME_DIR="$PLUGIN_DIR/chrome"
+    mkdir -p "$CHROME_DIR"
+
+    write_log "   Source: $DOWNLOAD_URL"
+
+    if curl -# -L -o "$CHROME_DIR/chrome.zip" "$DOWNLOAD_URL"; then
+        write_log "✅ Download complete, extracting..."
+        unzip -q "$CHROME_DIR/chrome.zip" -d "$CHROME_DIR"
+        rm "$CHROME_DIR/chrome.zip"
+        write_log "✅ Chrome for Testing installed"
+    else
+        write_log "❌ Error: Failed to download Chrome for Testing"
+        exit 1
+    fi
+
+    # Verify it exists now
+    if [[ ! -x "$CHROME_BIN" ]]; then
+        write_log "❌ Error: Chrome binary still not found after download"
+        exit 1
+    fi
 fi
 
 write_log "Using Chrome for Testing: $(basename "$(dirname "$CHROME_BIN")")"
