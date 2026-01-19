@@ -15,6 +15,10 @@ PROFILE_DIR="/tmp/contextfort-${SESSION_ID}"
 LOG_FILE="$PLUGIN_DATA_DIR/logs/launch.log"
 SESSION_FILE="$PLUGIN_DATA_DIR/sessions/${SESSION_ID}.json"
 
+# Ensure directories exist early (before any logging)
+mkdir -p "$PLUGIN_DATA_DIR/"{sessions,logs,events}
+mkdir -p "$CONTEXTFORT_DIR/logs"
+
 # Logging function (defined early to avoid macOS log command conflict)
 write_log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
@@ -62,8 +66,7 @@ fi
 
 write_log "Using Chrome for Testing: $(basename "$(dirname "$CHROME_BIN")")"
 
-# Ensure directories exist
-mkdir -p "$PLUGIN_DATA_DIR/"{sessions,logs,events}
+# Ensure profile directory exists
 mkdir -p "$PROFILE_DIR"
 
 # Write session ID to profile for extension to read
@@ -130,9 +133,11 @@ fi
     --disable-background-networking \
     --disable-sync \
     --disable-translate \
-    --disable-features=TranslateUI \
+    --disable-features=TranslateUI,PasswordImport \
     --disable-default-apps \
     --disable-component-update \
+    --use-mock-keychain \
+    --password-store=basic \
     --window-size=1920,1080 \
     --load-extension="$EXTENSIONS_TO_LOAD" \
     --disable-extensions-except="$EXTENSIONS_TO_LOAD" \
