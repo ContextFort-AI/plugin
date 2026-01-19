@@ -66,47 +66,56 @@ fi
 
 write_log "Using Chrome for Testing: $(basename "$(dirname "$CHROME_BIN")")"
 
-# Ensure profile directory exists
-mkdir -p "$PROFILE_DIR"
+# Check for authenticated profile template
+TEMPLATE_DIR="$HOME/.contextfort/profile-template"
+if [[ -d "$TEMPLATE_DIR" ]]; then
+    write_log "🔑 Found authenticated profile template, cloning..."
+    cp -r "$TEMPLATE_DIR" "$PROFILE_DIR"
+    write_log "✅ Profile cloned (login state preserved)"
 
-# Write session ID to profile for extension to read
-echo "$SESSION_ID" > "$PROFILE_DIR/contextfort-session-id.txt"
+    # Update session ID in cloned profile
+    echo "$SESSION_ID" > "$PROFILE_DIR/contextfort-session-id.txt"
+else
+    write_log "ℹ️  No auth template found (will need to login)"
+    write_log "   Run: $PLUGIN_DIR/bin/setup-auth.sh to set up persistent login"
+
+    # Create fresh profile
+    mkdir -p "$PROFILE_DIR"
+    echo "$SESSION_ID" > "$PROFILE_DIR/contextfort-session-id.txt"
+fi
 
 write_log "🚀 Starting ContextFort isolated session"
 write_log "Session ID: $SESSION_ID"
 write_log "Profile: $PROFILE_DIR"
 
-# Prepare extensions for loading
+# Prepare extensions for loading (if not already in cloned profile)
 write_log "Preparing extensions..."
 
 # ContextFort extension (unpacked from plugin)
 CONTEXTFORT_EXT_DIR="$PLUGIN_DIR/extension"
-if [[ -d "$CONTEXTFORT_EXT_DIR" ]]; then
-    cp -r "$CONTEXTFORT_EXT_DIR" "$PROFILE_DIR/ContextFortExtension"
-    write_log "✅ ContextFort extension prepared"
+if [[ ! -d "$PROFILE_DIR/ContextFortExtension" ]]; then
+    if [[ -d "$CONTEXTFORT_EXT_DIR" ]]; then
+        cp -r "$CONTEXTFORT_EXT_DIR" "$PROFILE_DIR/ContextFortExtension"
+        write_log "✅ ContextFort extension prepared"
+    else
+        write_log "❌ ERROR: ContextFort extension not found"
+        exit 1
+    fi
 else
-    write_log "❌ ERROR: ContextFort extension not found"
-    exit 1
+    write_log "✅ ContextFort extension (from template)"
 fi
 
 # Claude-in-Chrome extension (from user's Chrome profile)
 CLAUDE_EXT_SOURCE="/Users/ashwin/Library/Application Support/Google/Chrome/Profile 1/Extensions/fcoeoabgfenejglbffodgkkbkcdhcgfn/1.0.40_0"
-CLAUDE_EXT_ID="fcoeoabgfenejglbffodgkkbkcdhcgfn"
-if [[ -d "$CLAUDE_EXT_SOURCE" ]]; then
-    cp -r "$CLAUDE_EXT_SOURCE" "$PROFILE_DIR/ClaudeInChrome"
-    write_log "✅ Claude-in-Chrome extension prepared"
-
-    # Copy Claude extension auth data (persistent login)
-    CLAUDE_STORAGE_SOURCE="/Users/ashwin/Library/Application Support/Google/Chrome/Profile 1/Local Extension Settings/$CLAUDE_EXT_ID"
-    if [[ -d "$CLAUDE_STORAGE_SOURCE" ]]; then
-        mkdir -p "$PROFILE_DIR/Default/Local Extension Settings"
-        cp -r "$CLAUDE_STORAGE_SOURCE" "$PROFILE_DIR/Default/Local Extension Settings/"
-        write_log "✅ Claude login state transferred (no re-login needed)"
+if [[ ! -d "$PROFILE_DIR/ClaudeInChrome" ]]; then
+    if [[ -d "$CLAUDE_EXT_SOURCE" ]]; then
+        cp -r "$CLAUDE_EXT_SOURCE" "$PROFILE_DIR/ClaudeInChrome"
+        write_log "✅ Claude-in-Chrome extension prepared"
     else
-        write_log "⚠️  Warning: Claude login state not found (will need to login)"
+        write_log "⚠️  Warning: Claude-in-Chrome not found"
     fi
 else
-    write_log "⚠️  Warning: Claude-in-Chrome not found"
+    write_log "✅ Claude-in-Chrome extension (from template)"
 fi
 
 # Create session metadata
@@ -149,6 +158,11 @@ fi
     --disable-component-update \
     --use-mock-keychain \
     --password-store=basic \
+    --enable-gpu-rasterization \
+    --enable-zero-copy \
+    --enable-features=VaapiVideoDecoder \
+    --disable-software-rasterizer \
+    --num-raster-threads=4 \
     --window-size=1920,1080 \
     --load-extension="$EXTENSIONS_TO_LOAD" \
     --disable-extensions-except="$EXTENSIONS_TO_LOAD" \
