@@ -9,10 +9,11 @@ set -euo pipefail
 # Configuration
 CONTEXTFORT_DIR="$HOME/.contextfort"
 PLUGIN_DIR="$HOME/.claude/plugins/contextfort"
+PLUGIN_DATA_DIR="$PLUGIN_DIR/data"
 SESSION_ID=$(date +%s)
 PROFILE_DIR="/tmp/contextfort-${SESSION_ID}"
-LOG_FILE="$CONTEXTFORT_DIR/logs/launch.log"
-SESSION_FILE="$CONTEXTFORT_DIR/sessions/${SESSION_ID}.json"
+LOG_FILE="$PLUGIN_DATA_DIR/logs/launch.log"
+SESSION_FILE="$PLUGIN_DATA_DIR/sessions/${SESSION_ID}.json"
 
 # Chrome binary paths (try multiple locations)
 CHROME_PATHS=(
@@ -38,8 +39,11 @@ find_chrome() {
 CHROME_BIN=$(find_chrome)
 
 # Ensure directories exist
-mkdir -p "$CONTEXTFORT_DIR/"{sessions,logs}
+mkdir -p "$PLUGIN_DATA_DIR/"{sessions,logs,events}
 mkdir -p "$PROFILE_DIR"
+
+# Write session ID to profile for extension to read
+echo "$SESSION_ID" > "$PROFILE_DIR/contextfort-session-id.txt"
 
 # Logging
 log() {
