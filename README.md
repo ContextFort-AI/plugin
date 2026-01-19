@@ -4,29 +4,11 @@ Enterprise browser isolation for Claude Code.
 
 ## Installation
 
-### Quick Install (Recommended)
-
 ```bash
 /plugin install https://github.com/ContextFort-AI/plugin
 ```
 
 Chrome for Testing (~170MB) will automatically download on first use.
-
-### Pre-download Chrome (Optional)
-
-To avoid the download delay on first use, you can pre-download Chrome:
-
-```bash
-git clone https://github.com/ContextFort-AI/plugin
-cd plugin
-./INSTALL.sh
-```
-
-Then install locally:
-
-```bash
-/plugin install /path/to/plugin
-```
 
 ## Enterprise Deployment
 
