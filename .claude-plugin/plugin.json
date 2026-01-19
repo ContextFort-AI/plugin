@@ -1,0 +1,10 @@
+{
+  "name": "contextfort",
+  "version": "1.0.0",
+  "description": "Enterprise browser isolation for Claude Code",
+  "author": {
+    "name": "ContextFort"
+  },
+  "license": "MIT",
+  "hooks": "./hooks/hooks.json"
+}
