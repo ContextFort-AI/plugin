@@ -91,9 +91,20 @@ fi
 
 # Claude-in-Chrome extension (from user's Chrome profile)
 CLAUDE_EXT_SOURCE="/Users/ashwin/Library/Application Support/Google/Chrome/Profile 1/Extensions/fcoeoabgfenejglbffodgkkbkcdhcgfn/1.0.40_0"
+CLAUDE_EXT_ID="fcoeoabgfenejglbffodgkkbkcdhcgfn"
 if [[ -d "$CLAUDE_EXT_SOURCE" ]]; then
     cp -r "$CLAUDE_EXT_SOURCE" "$PROFILE_DIR/ClaudeInChrome"
     write_log "✅ Claude-in-Chrome extension prepared"
+
+    # Copy Claude extension auth data (persistent login)
+    CLAUDE_STORAGE_SOURCE="/Users/ashwin/Library/Application Support/Google/Chrome/Profile 1/Local Extension Settings/$CLAUDE_EXT_ID"
+    if [[ -d "$CLAUDE_STORAGE_SOURCE" ]]; then
+        mkdir -p "$PROFILE_DIR/Default/Local Extension Settings"
+        cp -r "$CLAUDE_STORAGE_SOURCE" "$PROFILE_DIR/Default/Local Extension Settings/"
+        write_log "✅ Claude login state transferred (no re-login needed)"
+    else
+        write_log "⚠️  Warning: Claude login state not found (will need to login)"
+    fi
 else
     write_log "⚠️  Warning: Claude-in-Chrome not found"
 fi
