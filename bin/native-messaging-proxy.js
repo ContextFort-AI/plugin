@@ -15,18 +15,40 @@ const PLUGIN_DIR = process.env.CONTEXTFORT_PLUGIN_DIR || path.join(__dirname, '.
 const REAL_NATIVE_HOST = '/Applications/Claude.app/Contents/Helpers/chrome-native-host';
 const CONTEXTFORT_DIR = path.join(process.env.HOME, '.contextfort');
 const LOG_FILE = path.join(CONTEXTFORT_DIR, 'logs', 'native-proxy.log');
+const JSON_LOG_FILE = path.join(CONTEXTFORT_DIR, 'logs', 'native-proxy-events.jsonl');
 
 // Ensure log directory exists
 fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true });
 
-// Logging
+// Session ID for this proxy instance
+const PROXY_SESSION_ID = `proxy-${Date.now()}-${process.pid}`;
+
+// Text logging (human-readable)
 function log(message) {
   const timestamp = new Date().toISOString();
   const logMessage = `[${timestamp}] ${message}\n`;
   fs.appendFileSync(LOG_FILE, logMessage);
 }
 
+// Structured JSON logging for SIEM
+function logEvent(eventType, data = {}) {
+  const event = {
+    timestamp: new Date().toISOString(),
+    event_type: eventType,
+    proxy_session_id: PROXY_SESSION_ID,
+    proxy_pid: process.pid,
+    ...data
+  };
+
+  // Write as JSON Lines format (one JSON object per line)
+  fs.appendFileSync(JSON_LOG_FILE, JSON.stringify(event) + '\n');
+}
+
 log('=== ContextFort Native Messaging Proxy Started ===');
+logEvent('proxy_start', {
+  plugin_dir: PLUGIN_DIR,
+  real_native_host: REAL_NATIVE_HOST
+});
 
 // Check if ContextFort Chrome is running
 function isContextFortRunning() {
@@ -67,6 +89,10 @@ function launchContextFortChrome() {
   child.unref();
 
   log(`ContextFort Chrome launched (PID: ${child.pid})`);
+  logEvent('chrome_launched', {
+    chrome_pid: child.pid,
+    launch_script: launchScript
+  });
 
   // Wait a bit for Chrome to start
   return new Promise(resolve => setTimeout(resolve, 2000));
@@ -146,10 +172,13 @@ async function main() {
     // Check and launch ContextFort Chrome if needed
     if (!isContextFortRunning()) {
       log('ContextFort Chrome not running, launching...');
+      logEvent('chrome_check', { status: 'not_running' });
       await launchContextFortChrome();
       log('ContextFort Chrome started successfully');
+      logEvent('chrome_check', { status: 'started' });
     } else {
       log('ContextFort Chrome already running');
+      logEvent('chrome_check', { status: 'already_running' });
     }
 
     // Spawn the real native host
@@ -159,48 +188,103 @@ async function main() {
     });
 
     log('Real native host spawned');
+    logEvent('real_host_spawn', {
+      real_host_path: REAL_NATIVE_HOST,
+      real_host_pid: realHost.pid
+    });
 
     // Forward stderr from real host to our log
     realHost.stderr.on('data', (data) => {
-      log(`[Real Host stderr] ${data.toString()}`);
+      const stderrData = data.toString();
+      log(`[Real Host stderr] ${stderrData}`);
+      logEvent('real_host_stderr', {
+        data: stderrData.substring(0, 500)
+      });
     });
 
     realHost.on('error', (error) => {
       log(`Real host error: ${error.message}`);
+      logEvent('real_host_error', {
+        error: error.message,
+        stack: error.stack
+      });
       process.exit(1);
     });
 
     realHost.on('exit', (code) => {
       log(`Real host exited with code ${code}`);
+      logEvent('real_host_exit', {
+        exit_code: code
+      });
       process.exit(code || 0);
     });
 
     // Bidirectional forwarding
     // Extension -> Proxy -> Real Host
+    let messageCountToHost = 0;
     (async () => {
       try {
         while (true) {
           const message = await readMessage(process.stdin);
-          log(`Received from extension: ${JSON.stringify(message).substring(0, 200)}...`);
+          messageCountToHost++;
+
+          const messageStr = JSON.stringify(message);
+          log(`Received from extension: ${messageStr.substring(0, 200)}...`);
+
+          logEvent('message_from_extension', {
+            message_id: messageCountToHost,
+            message_type: message.type || 'unknown',
+            message_size: messageStr.length,
+            message_preview: messageStr.substring(0, 200)
+          });
+
           writeMessage(realHost.stdin, message);
+
+          logEvent('message_forwarded_to_host', {
+            message_id: messageCountToHost
+          });
         }
       } catch (e) {
         log(`Error reading from extension: ${e.message}`);
+        logEvent('extension_read_error', {
+          error: e.message,
+          stack: e.stack
+        });
         realHost.kill();
         process.exit(0);
       }
     })();
 
     // Real Host -> Proxy -> Extension
+    let messageCountFromHost = 0;
     (async () => {
       try {
         while (true) {
           const message = await readMessage(realHost.stdout);
-          log(`Received from real host: ${JSON.stringify(message).substring(0, 200)}...`);
+          messageCountFromHost++;
+
+          const messageStr = JSON.stringify(message);
+          log(`Received from real host: ${messageStr.substring(0, 200)}...`);
+
+          logEvent('message_from_host', {
+            message_id: messageCountFromHost,
+            message_type: message.type || 'unknown',
+            message_size: messageStr.length,
+            message_preview: messageStr.substring(0, 200)
+          });
+
           writeMessage(process.stdout, message);
+
+          logEvent('message_forwarded_to_extension', {
+            message_id: messageCountFromHost
+          });
         }
       } catch (e) {
         log(`Error reading from real host: ${e.message}`);
+        logEvent('host_read_error', {
+          error: e.message,
+          stack: e.stack
+        });
         process.exit(0);
       }
     })();
@@ -208,6 +292,10 @@ async function main() {
   } catch (error) {
     log(`Fatal error: ${error.message}`);
     log(error.stack);
+    logEvent('fatal_error', {
+      error: error.message,
+      stack: error.stack
+    });
     process.exit(1);
   }
 }
@@ -215,7 +303,24 @@ async function main() {
 // Handle termination
 process.on('SIGTERM', () => {
   log('Received SIGTERM, shutting down...');
+  logEvent('proxy_shutdown', {
+    signal: 'SIGTERM'
+  });
   process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  log('Received SIGINT, shutting down...');
+  logEvent('proxy_shutdown', {
+    signal: 'SIGINT'
+  });
+  process.exit(0);
+});
+
+process.on('exit', (code) => {
+  logEvent('proxy_exit', {
+    exit_code: code
+  });
 });
 
 process.on('SIGINT', () => {

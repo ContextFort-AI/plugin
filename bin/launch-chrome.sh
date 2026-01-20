@@ -70,8 +70,18 @@ write_log "Using Chrome for Testing: $(basename "$(dirname "$CHROME_BIN")")"
 TEMPLATE_DIR="$HOME/.contextfort/profile-template"
 if [[ -d "$TEMPLATE_DIR" ]]; then
     write_log "🔑 Found authenticated profile template, cloning..."
-    cp -r "$TEMPLATE_DIR" "$PROFILE_DIR"
-    write_log "✅ Profile cloned (login state preserved)"
+    mkdir -p "$PROFILE_DIR"
+
+    # Use rsync with hard links for instant cloning (no data copy)
+    # This makes 100+ MB profiles clone in milliseconds
+    if command -v rsync &> /dev/null; then
+        rsync -a --link-dest="$TEMPLATE_DIR" "$TEMPLATE_DIR/" "$PROFILE_DIR/"
+        write_log "✅ Profile cloned with hard links (instant)"
+    else
+        # Fallback to regular copy if rsync not available
+        cp -r "$TEMPLATE_DIR/." "$PROFILE_DIR/"
+        write_log "✅ Profile cloned (rsync not available, using cp)"
+    fi
 
     # Update session ID in cloned profile
     echo "$SESSION_ID" > "$PROFILE_DIR/contextfort-session-id.txt"

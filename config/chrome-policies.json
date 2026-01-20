@@ -1,0 +1,144 @@
+{
+  "$schema": "./chrome-policies.schema.json",
+  "version": "1.0.0",
+  "description": "ContextFort Chrome Enterprise Policies",
+
+  "security": {
+    "description": "Security-related policies",
+    "policies": [
+      {
+        "name": "SyncDisabled",
+        "value": true,
+        "description": "Disable Chrome Sync to prevent data sync to personal Google account"
+      },
+      {
+        "name": "PasswordManagerEnabled",
+        "value": false,
+        "description": "Disable password manager to prevent credential storage in profile"
+      },
+      {
+        "name": "IncognitoModeAvailability",
+        "value": 1,
+        "description": "Disable incognito mode (0=enabled, 1=disabled, 2=forced)"
+      },
+      {
+        "name": "BrowserSignin",
+        "value": 0,
+        "description": "Disable browser sign-in (0=disabled, 1=enabled, 2=forced)"
+      }
+    ]
+  },
+
+  "privacy": {
+    "description": "Privacy and data handling policies",
+    "policies": [
+      {
+        "name": "ClearBrowsingDataOnExitList",
+        "value": [
+          "browsing_history",
+          "download_history",
+          "cookies_and_other_site_data",
+          "cached_images_and_files",
+          "autofill",
+          "site_settings"
+        ],
+        "description": "Data types to clear on browser exit"
+      },
+      {
+        "name": "DefaultCookiesSetting",
+        "value": 1,
+        "description": "Allow cookies (1=allow, 2=block, 4=session-only)"
+      },
+      {
+        "name": "DefaultGeolocationSetting",
+        "value": 2,
+        "description": "Block geolocation requests"
+      },
+      {
+        "name": "DefaultNotificationsSetting",
+        "value": 2,
+        "description": "Block notification requests"
+      }
+    ]
+  },
+
+  "extensions": {
+    "description": "Extension management policies",
+    "policies": [
+      {
+        "name": "ExtensionInstallBlocklist",
+        "value": ["*"],
+        "description": "Block all extensions by default"
+      },
+      {
+        "name": "ExtensionInstallForcelist",
+        "value": [
+          "contextfort_extension_id_here;https://clients2.google.com/service/update2/crx"
+        ],
+        "description": "Force-install ContextFort extension"
+      }
+    ]
+  },
+
+  "native_messaging": {
+    "description": "Native messaging security",
+    "policies": [
+      {
+        "name": "NativeMessagingBlocklist",
+        "value": ["*"],
+        "description": "Block all native messaging hosts by default"
+      },
+      {
+        "name": "NativeMessagingAllowlist",
+        "value": [
+          "com.anthropic.claude_browser_extension",
+          "com.contextfort.native_proxy"
+        ],
+        "description": "Allow only ContextFort and Claude native hosts"
+      }
+    ]
+  },
+
+  "network": {
+    "description": "Network and connectivity policies",
+    "policies": [
+      {
+        "name": "ProxyMode",
+        "value": "system",
+        "description": "Use system proxy settings"
+      },
+      {
+        "name": "SafeBrowsingEnabled",
+        "value": true,
+        "description": "Enable Safe Browsing for malware protection"
+      }
+    ]
+  },
+
+  "dlp": {
+    "description": "Data Loss Prevention (ContextFort-specific)",
+    "config": {
+      "enabled": true,
+      "blockMode": false,
+      "patterns": [
+        "ssn",
+        "credit_card",
+        "api_key",
+        "aws_key",
+        "private_key",
+        "jwt"
+      ]
+    }
+  },
+
+  "screenshots": {
+    "description": "Screenshot capture (ContextFort-specific)",
+    "config": {
+      "enabled": false,
+      "interval": 30000,
+      "quality": 80,
+      "maxWidth": 1920,
+      "storageLimit": 100
+    }
+  }
+}

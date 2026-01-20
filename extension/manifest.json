@@ -12,7 +12,8 @@
     "tabGroups",
     "webNavigation",
     "declarativeNetRequest",
-    "scripting"
+    "scripting",
+    "activeTab"
   ],
 
   "host_permissions": [
@@ -28,6 +29,11 @@
       "matches": ["<all_urls>"],
       "js": ["content.js"],
       "run_at": "document_start"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["clipboard-monitor.js"],
+      "run_at": "document_idle"
     }
   ],
 

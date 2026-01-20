@@ -2,4 +2,3 @@ chrome/
 *.log
 .DS_Store
 data/
-research/browserbase-plugin/
